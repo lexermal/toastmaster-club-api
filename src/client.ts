@@ -1,7 +1,8 @@
 import { obtainClearance, type ClearanceOptions } from './cloudflare.js';
 import { CookieJar, isCloudflareChallenge, loadSession, saveSession } from './http.js';
 import { parseBoard } from './parsers/board.js';
-import { isLoggedIn, parseSession } from './parsers/common.js';
+import { isLoggedIn, load, parseSession } from './parsers/common.js';
+import { pageMessage, parseClubEmailAudience, parseSentTo } from './parsers/email.js';
 import { parseAgenda, parseMeeting } from './parsers/meeting.js';
 import {
   formFieldNames,
@@ -15,7 +16,10 @@ import {
 import type {
   Agenda,
   AttendanceAnswer,
+  ClubEmailAudience,
+  ClubEmailOptions,
   ClubSpeech,
+  EmailOptions,
   MeetingAttendee,
   MeetingDetails,
   Member,
@@ -349,7 +353,87 @@ export class TmClubClient {
     return this.setMeetingFields(meetingId, { word: word });
   }
 
+  // ---- E-mail (sent by easy-Speak from its own address; members' addresses stay hidden) ----
+
+  /**
+   * E-mail one or more members by user id (the profile "send e-mail" / member list mass e-mail).
+   * Resolves with the names easy-Speak reports as recipients.
+   */
+  async sendEmail(userIds: string | string[], opts: EmailOptions): Promise<string[]> {
+    const ids = [userIds].flat();
+    if (!ids.length) throw new Error('sendEmail: no recipients.');
+    const form = new URLSearchParams();
+    if (ids.length === 1) form.set('u', ids[0]);
+    for (const id of ids) form.set(`rec[${id}]`, id);
+    form.set('cache_massemail', ids.length > 1 ? '1' : '0');
+    form.set('subject', opts.subject);
+    form.set('message', opts.message);
+    if (opts.copyToSelf ?? true) form.set('cc_email', '1');
+    if (opts.includeMeetingLink) form.set('send_link', '1');
+    form.set('submit', 'Send');
+    const res = await this.send('profile.php?mode=email&action=send', form);
+    const sentTo = parseSentTo(res.html);
+    if (!sentTo) throw new Error(`E-mail not sent: ${pageMessage(res.html)}`);
+    return sentTo;
+  }
+
+  /** Membership statuses the club mass e-mail can target, with member counts. */
+  async getClubEmailAudience(opts: { clubId?: string } = {}): Promise<ClubEmailAudience[]> {
+    const clubId = await this.clubIdOr(opts.clubId);
+    return parseClubEmailAudience((await this.page(`org_email.php?c=${clubId}`)).html);
+  }
+
+  /** The club mass e-mail ("Club e-mail"): everyone with the chosen statuses, or all officers. */
+  async sendClubEmail(opts: ClubEmailOptions): Promise<{ sentTo?: string[]; pageText: string }> {
+    const clubId = await this.clubIdOr(opts.clubId);
+    const page = await this.page(`org_email.php?c=${clubId}`);
+    const form = serializeForm(page.html, 'form[name="orgEmailFrm"]');
+    if (!form) throw new Error('Club e-mail form not found — do you have access to it in this club?');
+    if (opts.statuses) {
+      const audience = parseClubEmailAudience(page.html);
+      const wanted = opts.statuses.map((s) => s.toLowerCase());
+      const unknown = wanted.filter((w) => !audience.some((a) => a.status.toLowerCase() === w));
+      if (unknown.length) throw new Error(`Unknown statuses: ${unknown.join(', ')} (have: ${audience.map((a) => a.status).join(', ')})`);
+      // Each status is a yes/no radio pair; "no" is the negated status id.
+      for (const a of audience) form.set(a.field, wanted.includes(a.status.toLowerCase()) ? a.value : `-${a.value}`);
+    }
+    form.set('selectradio', opts.recipients === 'officers' ? '2' : '1');
+    form.set('use_replyto', opts.replyToClub === false ? '0' : '1');
+    form.set('subject', opts.subject);
+    form.set('message', opts.message);
+    if (opts.includeMeetingLink) form.set('send_link', '1');
+    form.set('action', 'email');
+    const res = await this.send('org_email.php', form);
+    return { sentTo: parseSentTo(res.html), pageText: pageMessage(res.html) };
+  }
+
+  /** "E-mail meeting to a friend": sends the meeting's details to any address, e.g. a guest. */
+  async emailAgenda(meetingId: string, to: { name: string; email: string; message?: string }) {
+    await this.whoami();
+    // Popup page without navigation, so page()'s login detection doesn't apply.
+    const page = await this.request(`email_agenda.php?t=${meetingId}`);
+    const form = serializeForm(page.html, 'form[name="emailtopic"]');
+    if (!form) throw new Error(`Meeting ${meetingId} not found.`);
+    form.set('friend_name', to.name);
+    form.set('friend_email', to.email);
+    // Without a message the site's own invitation text (already in the form) is kept.
+    if (to.message !== undefined) form.set('message', to.message);
+    form.set('submit', 'Send');
+    const res = await this.send('email_agenda.php', form);
+    if (load(res.html)('input[name="friend_email"]').length) throw new Error(`Agenda e-mail not sent: ${pageMessage(res.html)}`);
+  }
+
   // ---- internals ---------------------------------------------------------------------------
+
+  /**
+   * POST that must never be repeated (e-mails). page() would re-login and resend whenever the
+   * result lacks the navigation bar, which the e-mail result popups always do; so the login is
+   * checked up front instead.
+   */
+  private async send(path: string, form: URLSearchParams) {
+    await this.page('index.php');
+    return this.request(path, { method: 'POST', form });
+  }
 
   private async tableTopicsCall(form: Record<string, string>) {
     const res = await this.request('ajax/ajax_table_topics.php', { method: 'POST', form });

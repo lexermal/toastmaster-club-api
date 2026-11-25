@@ -205,3 +205,37 @@ export interface SpeechRequest {
   /** Request on behalf of another member (admins). Defaults to you. */
   userId?: string;
 }
+
+export interface EmailOptions {
+  subject: string;
+  /** Message body. The site's editor produces HTML, so HTML is sent as-is; plain text works too. */
+  message: string;
+  /** Send yourself a copy. Default true (the site's default). */
+  copyToSelf?: boolean;
+  /** Append a link to the club's next meeting. Default false. */
+  includeMeetingLink?: boolean;
+}
+
+export interface ClubEmailOptions extends EmailOptions {
+  /** "members" (filtered by `statuses`) or "officers". Default "members". */
+  recipients?: 'members' | 'officers';
+  /**
+   * Membership statuses to include, as named on the site ("Member", "Guest that visited the club", ...).
+   * Default: the site's own preselection. See getClubEmailAudience() for the names and counts.
+   */
+  statuses?: string[];
+  /** Replies go to the club's reply-to address (true, default) or to you (false). */
+  replyToClub?: boolean;
+  clubId?: string;
+}
+
+/** One membership status the club mass e-mail can target. */
+export interface ClubEmailAudience {
+  status: string;
+  /** Form field + value that select this status. */
+  field: string;
+  value: string;
+  selectedByDefault: boolean;
+  members: number;
+  recentlyActive: number;
+}

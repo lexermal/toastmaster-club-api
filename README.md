@@ -61,6 +61,16 @@ await tm.signUpForRoleByName(next.meetingId, 'Timekeeper');
 | `getTableTopics(id)` | Table Topics speakers of a meeting, plus everyone who can be added |
 | `addTableTopicsSpeaker(id, userId, { durationSeconds? })` | Add a Table Topics speaker |
 | `removeTableTopicsSpeaker(id, assignmentId)` | Remove one |
+| `sendEmail(userId \| userIds, { subject, message, copyToSelf?, includeMeetingLink? })` | E-mail one or more members; returns the recipient names easy-Speak confirms |
+| `getClubEmailAudience({ clubId? })` | Membership statuses the club e-mail can target, with counts |
+| `sendClubEmail({ subject, message, recipients?, statuses?, replyToClub?, includeMeetingLink? })` | The club mass e-mail: all members with the given statuses, or all officers |
+| `emailAgenda(id, { name, email, message? })` | "E-mail meeting to a friend": send the meeting details to any address, e.g. a guest |
+
+E-mails go out from easy-Speak; members' addresses are never exposed. `message` is HTML. The site
+allows only one e-mail per short interval (it answers "To prevent spam…"), which `sendEmail`
+reports as an error; send to many members in one call instead of looping. E-mail calls never
+retry by themselves, so a failure never means a duplicate. `sendClubEmail` and `emailAgenda`
+are **not yet verified live** (testing them would e-mail other people).
 
 Officer operations (need officer rights in the club; written against the site's own form
 actions but **not yet verified with an officer account**):
