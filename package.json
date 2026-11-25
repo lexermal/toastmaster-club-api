@@ -1,0 +1,55 @@
+{
+  "name": "tmclub-api",
+  "version": "0.1.0",
+  "description": "Unofficial Node.js client for easy-Speak (tmclub.eu, easy-speak.org, toastmasterclub.org) to manage Toastmasters club meetings: attendance, roles, agendas, speech requests.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "toastmasters",
+    "easy-speak",
+    "tmclub",
+    "easyspeak"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lexermal/toastmaster-club-api.git"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "pnpm build"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0"
+  },
+  "peerDependencies": {
+    "playwright": ">=1.40"
+  },
+  "peerDependenciesMeta": {
+    "playwright": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "playwright": "^1.64.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
