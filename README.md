@@ -2,8 +2,8 @@
 
 Unofficial Node.js client for **easy-Speak** — the meeting system behind
 [tmclub.eu](https://tmclub.eu) (mainland Europe), toastmasterclub.org (UK/IE) and easy-speak.org.
-Manage Toastmasters club meetings from code: attendance, roles, agendas, attendee lists and
-speech requests.
+Manage Toastmasters club meetings from code: attendance, roles, agendas, attendee lists,
+speech requests and e-mails to members.
 
 easy-Speak has no API, so this library speaks to the website the way a browser does and parses
 the HTML into typed objects.
@@ -66,7 +66,8 @@ await tm.signUpForRoleByName(next.meetingId, 'Timekeeper');
 | `sendClubEmail({ subject, message, recipients?, statuses?, replyToClub?, includeMeetingLink? })` | The club mass e-mail: all members with the given statuses, or all officers |
 | `emailAgenda(id, { name, email, message? })` | "E-mail meeting to a friend": send the meeting details to any address, e.g. a guest |
 
-E-mails go out from easy-Speak; members' addresses are never exposed. `message` is HTML. The site
+E-mails go out from easy-Speak; members' addresses are never exposed. `message` is HTML (plain
+text works too). `copyToSelf` defaults to `true`, like on the site, so the sender gets a copy. The site
 allows only one e-mail per short interval (it answers "To prevent spam…"), which `sendEmail`
 reports as an error; send to many members in one call instead of looping. E-mail calls never
 retry by themselves, so a failure never means a duplicate. `sendClubEmail` and `emailAgenda`
